@@ -1,4 +1,4 @@
-import os, re, subprocess
+import os, re, subprocess, pickle
 import numpy as np 
 import scipy 
 import scipy.signal as signal
@@ -9,6 +9,7 @@ from tensorflow.keras import layers
 import pandas as pd 
 import h5py 
 from tqdm import tqdm
+import sklearn 
 
 def DNN_model(dnn_sizes,input_shape,dropout=0.1):
     model = keras.Sequential()
@@ -23,10 +24,15 @@ def DNN_model(dnn_sizes,input_shape,dropout=0.1):
 def CNN_model(filters,kernel_sizes,input_shape,pool_size,dnn_sizes,dropout=0.1):
     model = keras.Sequential()
     model.add(keras.Input(shape=input_shape))
-    for ii in range(len(filters)):
-        model.add(layers.Conv2D(filters[ii],kernel_sizes[ii], activation="relu"))
-        model.add(layers.MaxPooling2D(pool_size=pool_size))
-        model.add(layers.Dropout(dropout))
+    model.add(layers.Conv2D(filters[0],kernel_sizes[0], activation="relu",padding="same"))
+    model.add(layers.MaxPooling2D(pool_size=pool_size))
+    model.add(layers.Dropout(dropout))
+    model.add(layers.Conv2D(filters[1],kernel_sizes[1], activation="relu"))
+    model.add(layers.MaxPooling2D(pool_size=pool_size))
+    model.add(layers.Dropout(dropout))
+    model.add(layers.Conv2D(filters[2],kernel_sizes[2], activation="relu"))
+    model.add(layers.MaxPooling2D(pool_size=pool_size))
+    model.add(layers.Dropout(dropout))
     model.add(layers.Flatten())
     model.add(layers.Dense(dnn_sizes[0],activation="relu"))
     model.add(layers.Dense(dnn_sizes[1],activation="softmax"))
@@ -116,6 +122,10 @@ if __name__ == "__main__":
         # get header size 
         model_dict["model_header_size"] = os.path.getsize(model_header)
         models[ii] = model_dict
+
+    # write model history to disk 
+    with open('/home/timclements/CS249FINAL/DNN_models.pkl', 'wb') as file:
+        pickle.dump(models, file)
     
 
 
@@ -165,13 +175,13 @@ if __name__ == "__main__":
 
 # ### CNN model 16 - 16 - 32 - 32 - 64 - 64 - Dense(16) - Dense(3)
 # model = keras.Sequential()
-# model.add(keras.Input(shape=(200,3,1)))  
-# model.add(layers.Conv2D(16,(7,1), activation="relu"))
-# model.add(layers.Conv2D(16, (9, 1), activation="relu"))
-# model.add(layers.MaxPooling2D(pool_size=(5,1)))
+# model.add(keras.Input(shape=(80,3,1)))  
+# model.add(layers.Conv2D(16,(3,1), activation="relu"))
+# model.add(layers.Conv2D(16, (5, 1), activation="relu"))
+# model.add(layers.MaxPooling2D(pool_size=(2,1)))
 # model.add(layers.Dropout(0.1))
-# model.add(layers.Conv2D(32, (9, 1), activation="relu"))
-# model.add(layers.Conv2D(32, (9, 1), activation="relu"))
+# model.add(layers.Conv2D(32, (5, 1), activation="relu"))
+# model.add(layers.Conv2D(32, (5, 1), activation="relu"))
 # model.add(layers.MaxPooling2D(pool_size=(3,3)))
 # model.add(layers.Dropout(0.1))
 # model.add(layers.Flatten())

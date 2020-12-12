@@ -202,7 +202,7 @@ def clean(df):
     df["s_arrival_sample"] = df["s_arrival_sample"].round().astype(int)
 
     # remove where p_wave starts too early in the sample 
-    df = df[df["p_arrival_sample"] >= 400]
+    df = df[df["p_arrival_sample"] >= 200]
 
     # remove earthquakes > 100 km away 
     df = df[df["source_distance_km"] < 100]
@@ -214,7 +214,6 @@ def clean(df):
     df = df[df["snr_db"] > 40] 
     
     # check p and s arrival samples
-    df = df[df["p_arrival_sample"] > 200]
     df = df[df["s_arrival_sample"] - df["p_arrival_sample"] > 20]
 
     # find where p and s weight greater than 0.5 
