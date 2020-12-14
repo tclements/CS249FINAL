@@ -130,7 +130,7 @@ if __name__ == "__main__":
     pool_size = (3,1)
     dnn_sizes = (16,3)
     models = {}
-    for ii in range(11,len(filter_sizes)):
+    for ii in range(len(filter_sizes)):
         model_dict = {}
         model = CNN_model(filter_sizes[ii],kernel_sizes[ii],input_shape,pool_size,dnn_sizes)
         model.compile(optimizer="adam", loss="categorical_crossentropy",metrics=['mae', 'accuracy'])
