@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import h5py 
 import dataprep 
+import pandas as pd 
 
 csvfile = "/home/timclements/CS249FINAL/data/merge.csv"
 h5path = "/home/timclements/CS249FINAL/data/merge.hdf5"
@@ -22,29 +23,40 @@ data = dataprep.highpass(data,2.,100.)
 fl.close()
 
 # plot three classes together 
-startat = 143
-numsamples = 1100
+startat = 500
+numsamples = 2000
 fs = 100.
 freq = 2. 
+yoffset = 7500 
+ytext = 1000
 t = np.linspace(0,numsamples/fs,numsamples)
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(16,10))
 ax.plot(t,data[0,startat:startat+numsamples],c="k",alpha=0.85)
-ax.axvline([(p_start - startat) / fs],c="red")
-ax.axvline([(s_start - startat) / fs],c="blue")
-ax.axvspan((startat+50) / fs,(startat+250) / fs ,alpha=0.5, color="grey",label="Noise") 
-ax.axvspan((p_start-startat-100) / fs,(p_start - startat+100) / fs ,alpha=0.5, color="red",label="P-wave") 
-ax.axvspan((s_start-startat-100) / fs,(s_start - startat+100) / fs ,alpha=0.5, color="blue",label="S-wave")
-ax.set_xlabel("Second",fontsize=18)
-ax.set_ylabel("Amplitude Counts",fontsize=14)
+ax.plot(t,data[1,startat:startat+numsamples] - yoffset,c="k",alpha=0.85)
+ax.plot(t,data[2,startat:startat+numsamples] - 2 * yoffset,c="k",alpha=0.85)
+ax.axvline([(p_start - startat) / fs],c="red",linewidth=2)
+ax.axvline([(s_start - startat) / fs],c="blue",linewidth=2)
+ax.text(1.25,ytext,"East",fontsize=18)
+ax.text(1.25,ytext - yoffset,"North",fontsize=18)
+ax.text(1.2,ytext - 2 * yoffset,"Vertical",fontsize=18)
+# ax.axvspan((startat+50) / fs,(startat+250) / fs ,alpha=0.5, color="grey",label="Noise") 
+# ax.axvspan((p_start-startat-100) / fs,(p_start - startat+100) / fs ,alpha=0.5, color="red",label="P-wave") 
+# ax.axvspan((s_start-startat-100) / fs,(s_start - startat+100) / fs ,alpha=0.5, color="blue",label="S-wave")
+ax.set_xlabel("Time [s]",fontsize=18)
+ax.set_yticks([], [])
+ax.tick_params(axis='both', which='major', labelsize=12)
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
+ax.spines['left'].set_visible(False)
+ax.set_xlim([0.,20.])
+ax.tick_params(direction='in')
 plt.tight_layout()
 fig.savefig("/home/timclements/CS249FINAL/FIGURES/all3.pdf")
 plt.close()
 
-pwave = data[:,p_start-100:p_start+100]
-swave = data[:,s_start-100:s_start+100]
-noise = data[:,startat+50:startat+250]
+pwave = data[:,p_start-100:p_start+100].copy()
+swave = data[:,s_start-100:s_start+100].copy()
+noise = data[:,50:250].copy()
 pwave = dataprep.normalize(pwave)
 swave = dataprep.normalize(swave)
 noise = dataprep.normalize(noise)
@@ -68,7 +80,7 @@ ax1.yaxis.set_ticks(yticks)
 ax1.tick_params(direction='in')
 ax1.spines['bottom'].set_bounds(min(zoom_t), max(zoom_t))
 ax1.set_xlim([-0.05, 2.])
-ax2.plot(zoom_t,pwave[0,:],c="red",alpha=0.5,linewidth = 2)
+ax2.plot(zoom_t,pwave[2,:],c="red",alpha=0.5,linewidth = 2)
 ax2.set_title("P-wave               ",fontsize=20,color="red")
 ax2.set_ylabel("Normalized Amplitude",fontsize=14)
 ax2.set_xlim(xmin=0)
@@ -86,7 +98,7 @@ ax2.spines['bottom'].set_bounds(min(zoom_t), max(zoom_t))
 ax2.set_xlim([-0.05, 2.])
 ax3.plot(zoom_t,swave[0,:],c="blue",alpha=0.5,linewidth = 2)
 ax3.set_title("S-wave               ",fontsize=20,color="blue")
-ax3.set_xlabel("Second",fontsize=18)
+ax3.set_xlabel("Time [s]",fontsize=18)
 ax3.set_xlim(xmin=0)
 ax3.spines['right'].set_visible(False)
 ax3.spines['top'].set_visible(False)

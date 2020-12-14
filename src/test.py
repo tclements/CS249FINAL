@@ -54,6 +54,3 @@ if __name__ == "__main__":
     # convert some test data to data that can be read on the device 
     input_dir = "/home/timclements/CS249FINAL/src/"
     test2input(Xtest[0:1],input_dir)
-
-
-
