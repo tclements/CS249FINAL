@@ -29,8 +29,22 @@ def CNN_model(filters,kernel_sizes,input_shape,pool_size,dnn_sizes,dropout=0.1):
         model.add(layers.MaxPooling2D(pool_size=pool_size))
         model.add(layers.Dropout(dropout))
     model.add(layers.Flatten())
-    model.add(layers.Dense(dnn_sizes[0],activation="relu"))
-    model.add(layers.Dense(dnn_sizes[1],activation="softmax"))
+    for ii in range(len(dnn_sizes)-1):
+        model.add(layers.Dense(dnn_sizes[ii],activation="relu"))
+    model.add(layers.Dense(dnn_sizes[-1],activation="softmax"))
+    return model
+
+def DSCNN_model(multipliers,kernel_sizes,input_shape,pool_size,dnn_sizes,dropout=0.1):
+    model = keras.Sequential()
+    model.add(keras.Input(shape=input_shape))
+    for ii in range(len(kernel_sizes)):
+        model.add(layers.DepthwiseConv2D(kernel_sizes[ii], depth_multiplier=multipliers[ii], activation="relu"))
+        model.add(layers.MaxPooling2D(pool_size=pool_size))
+        model.add(layers.Dropout(dropout))
+    model.add(layers.Flatten())
+    for ii in range(len(dnn_sizes)-1):
+        model.add(layers.Dense(dnn_sizes[ii],activation="relu"))
+    model.add(layers.Dense(dnn_sizes[-1],activation="softmax"))
     return model
 
 def representative_dataset():
@@ -67,11 +81,14 @@ if __name__ == "__main__":
     # directories for tflite and header files 
     DNNDIR = "/home/timclements/CS249FINAL/DNN"
     CNNDIR = "/home/timclements/CS249FINAL/CNN"
+    DSCNNDIR = "/home/timclements/CS249FINAL/DSCNN"
     DNNMODELDIR = os.path.join(DNNDIR,"models")
     DNNHEADERDIR = os.path.join(DNNDIR,"headers")
     CNNMODELDIR = os.path.join(CNNDIR,"models")
     CNNHEADERDIR = os.path.join(CNNDIR,"headers")
-    for DIR in [DNNMODELDIR,DNNHEADERDIR,CNNMODELDIR,CNNHEADERDIR]:
+    DSCNNMODELDIR = os.path.join(DSCNNDIR,"models")
+    DSCNNHEADERDIR = os.path.join(DSCNNDIR,"headers")
+    for DIR in [DNNMODELDIR,DNNHEADERDIR,CNNMODELDIR,CNNHEADERDIR,DSCNNMODELDIR,DSCNNHEADERDIR]:
         if not os.path.isdir(DIR): 
             os.makedirs(DIR)
 
@@ -176,6 +193,65 @@ if __name__ == "__main__":
     # write model history to disk 
     with open('/home/timclements/CS249FINAL/CNN_models.pkl', 'wb') as file:
         pickle.dump(models, file)
+
+    ## train DS-CNN models
+    multipliers = [(2**ii,2**jj) for ii in range(1,5) for jj in range(0,4)][:-1]
+    kernel_sizes = [[(3,1),(3,1)] for ii in range(len(multipliers))]
+    pool_size = (3,1)
+    dnn_sizes = (16,3)
+    models = {}
+    for ii in range(len(filter_sizes)):
+        model_dict = {}
+        model = DSCNN_model(multipliers[ii],kernel_sizes[ii],input_shape,pool_size,dnn_sizes)
+        model.compile(optimizer="adam", loss="categorical_crossentropy",metrics=['mae', 'accuracy'])
+        history = model.fit(train_dataset, epochs=100, validation_data=val_dataset)
+        model_dict["params"] = model.count_params()
+        model_dict["history"] = history.history
+        model_dict["multipliers"] = multipliers[ii]
+        model_dict["kernel_size"] = kernel_sizes[ii]
+        model_dict["pool_size"] = pool_size
+
+        # get precision, recall, f1-score, support
+        preds = model.predict(Xtest)
+        outpred = np.argmax(preds,axis=-1)
+        model_dict["report"] = sklearn.metrics.classification_report(
+            truth,
+            outpred,
+            target_names=CLASSES,
+            output_dict=True
+        )
+
+        # get confusion matrix 
+        model_dict["confusion"] = tf.math.confusion_matrix(truth,outpred)
+
+        # Convert the model to the TensorFlow Lite format without quantization
+        converter = tf.lite.TFLiteConverter.from_keras_model(model)
+        tflite_model = converter.convert()
+        model_name = os.path.join(DSCNNMODELDIR,"model_{}_{}_{}.tflite".format(ii,*multipliers[ii]))
+        model_header = os.path.join(DSCNNHEADERDIR,"model_{}_{}_{}.h".format(ii,*multipliers[ii]))
+
+        # Save the model to disk
+        open(model_name, "wb").write(tflite_model)
+        model_dict["model_size"] = os.path.getsize(model_name)
+
+        # save header to disk 
+        subprocess.call('echo "const unsigned char model[] __attribute__((aligned(4))) = {{"  > {}'.format(model_header),shell=True)
+        subprocess.call("cat {} | xxd -i >> {}".format(model_name,model_header),shell=True)
+        subprocess.call('echo "}};" >> {}'.format(model_header),shell=True)
+
+        # get header size 
+        model_dict["model_header_size"] = os.path.getsize(model_header)
+        models[ii] = model_dict
+
+    # write model history to disk 
+    with open('/home/timclements/CS249FINAL/DSCNN_models.pkl', 'wb') as file:
+        pickle.dump(models, file)
+
+    # train final model with DS-CNN
+    multipliers = [4,2,2,2]
+    kernel_sizes = [(3,1),(3,1),(3,1),(3,3)]
+    pool_size = (2,1)
+    dnn_sizes = (32,3)
 
 
 

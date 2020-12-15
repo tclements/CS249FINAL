@@ -3,6 +3,7 @@ import tensorflow as tf
 import tensorflow.keras as keras 
 import numpy as np 
 import matplotlib.pyplot as plt 
+import sklearn.metrics
 
 def test2input(A,input_dir):
     'Convert test data to cc/header file'
@@ -33,16 +34,22 @@ def test2input(A,input_dir):
     open(cc_file, "w").write(cc_out)
     return None
 
+def decision_threshold(Y,threshold):
+    Ycop = Y.copy()
+    Ycop[np.where(Ycop[:,0:2] < threshold)] = 0
+    return np.argmax(Ycop,axis=-1)
+
 if __name__ == "__main__": 
 
     # load test data 
     testdata = np.load("/home/timclements/CS249FINAL/data/test.npz")
     Xtest = testdata["Xtest"]
     Ytest = testdata["Ytest"]
+    truth = np.argmax(Ytest,axis=-1)
 
     # check that models work on test data 
-    models = glob.glob("/home/timclements/CS249FINAL/models/*")
-    model = tf.lite.Interpreter(models[0])
+    modelname = "/home/timclements/CS249FINAL/CNN/models/model_5_4_16.tflite"
+    model = tf.lite.Interpreter(model_name)
     model.allocate_tensors()
     model_input_index = model.get_input_details()[0]["index"]
     model_output_index = model.get_output_details()[0]["index"]
@@ -54,3 +61,75 @@ if __name__ == "__main__":
     # convert some test data to data that can be read on the device 
     input_dir = "/home/timclements/CS249FINAL/src/"
     test2input(Xtest[0:1],input_dir)
+
+    # test precision, recall and F1 score on range on thresholds 
+    CLASSES = ["P-wave","S-wave","Noise"]
+    preds = model.predict(Xtest)
+    thresholds = np.linspace(0.4,0.99,60)
+    reports = {}
+    for ii in range(len(thresholds)): 
+        threshpred = decision_threshold(preds,thresholds[ii])
+        reports[ii] = sklearn.metrics.classification_report(truth,threshpred,target_names=CLASSES,output_dict=True)
+
+    # extract accuracies 
+    accuracy = np.zeros(len(thresholds))
+    Precall = np.zeros(len(thresholds))
+    Pprecision = np.zeros(len(thresholds))
+    Srecall = np.zeros(len(thresholds))
+    Sprecision = np.zeros(len(thresholds))
+    Nrecall = np.zeros(len(thresholds))
+    Nprecision = np.zeros(len(thresholds))
+    for ii in range(len(thresholds)):
+        accuracy[ii] = reports[ii]["accuracy"]
+        Precall[ii] = reports[ii]["P-wave"]["precision"]
+        Pprecision[ii] = reports[ii]["P-wave"]["recall"]
+        Srecall[ii] = reports[ii]["S-wave"]["precision"]
+        Sprecision[ii] = reports[ii]["S-wave"]["recall"]
+        Nrecall[ii] = reports[ii]["Noise"]["precision"]
+        Nprecision[ii] = reports[ii]["Noise"]["recall"]
+
+    # plot precision vs recall 
+    fig,ax = plt.subplots(figsize=(6,6))
+    im = ax.scatter(Precall ,Pprecision,100,c=thresholds,alpha=0.85,label="P-wave",edgecolor="k",cmap=plt.cm.inferno)
+    ax.scatter(Srecall ,Sprecision,100,c=thresholds,alpha=0.85,label="S-wave",edgecolor="k",marker="^",cmap=plt.cm.inferno)
+    ax.axhline([0.25],linestyle="--",c="grey",alpha=0.85,label="No skill")
+    ax.legend(loc="center left",fontsize=14,borderpad = 1.)
+    ax.set_xlabel("Recall",fontsize=18)
+    ax.set_ylabel("Precision",fontsize=18)
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.set_ylim([0.18, 0.97])
+    ax.spines['left'].set_bounds(0.2, 0.97)
+    ax.tick_params(direction='in')
+    ax.spines['bottom'].set_bounds(0.86,1.)
+    ax.tick_params(labelsize=12)
+    c_ax = inset_axes(ax,
+                        width="50%",  # width = 50% of parent_bbox width
+                        height="5%",  # height : 5%
+                        loc='lower left',
+                        borderpad=7.5)
+    cb = fig.colorbar(im, cax=c_ax, orientation="horizontal")
+    cb.ax.xaxis.set_ticks_position("top")
+    cb.ax.set_xlabel('Detection Threshold',fontsize=14)
+    cb.ax.tick_params(labelsize=12)
+    plt.tight_layout()
+    plt.savefig("/home/timclements/CS249FINAL/FIGURES/precision-vs-recall.pdf")
+    plt.close()
+
+    # plot confusion matrix 
+    ind = np.argmax(accuracy)
+    maxpred = decision_threshold(preds,thresholds[ind])
+    confusion = tf.math.confusion_matrix(truth,maxpred)
+    plt.figure(figsize=(6, 6))
+    ax = sns.heatmap(np.round(confusion / np.sum(confusion,axis=0),decimals=2), xticklabels=CLASSES, yticklabels=CLASSES, 
+            annot=True,cmap="Blues",linewidths=.5,cbar=False)
+    ax.set_xticklabels(ax.get_xmajorticklabels(), fontsize = 16)
+    ax.set_yticklabels(ax.get_ymajorticklabels(), fontsize = 16)
+    plt.xlabel('Prediction',fontsize=18)
+    plt.ylabel('Label',fontsize=18)
+    plt.tight_layout()
+    plt.savefig("/home/timclements/CS249FINAL/FIGURES/confusion-matrix.pdf")
+    plt.close()
+
+
+
