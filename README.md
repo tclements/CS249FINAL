@@ -11,10 +11,10 @@ Earthquake  detection  is  the  critical  first  step  inEarthquake  Early  Warn
 Data used in this study is available on [GitHub](https://github.com/smousavi05/STEAD). To train the models, it is expected that you place the merged HDF5 and csv file in the `data` directory. Only the testing data is available in this repo. 
 
 1. The conda environment used to create this work is `environment.yml`
-2 Data preparation is done through the `src/dataprep.py` script. 
-3 Training is done with the `train.py` script. 
-4 Model testing is done with the `test.py` script. 
-5 The Arduino file for loading models on device is `src/FC_detection.ino`. 
+2. Data preparation is done through the `src/dataprep.py` script. 
+3. Training is done with the `train.py` script. 
+4. Model testing is done with the `test.py` script. 
+5. The Arduino file for loading models on device is `src/FC_detection.ino`. 
 6. Tflite and header files for each model are in the `DNN`, `CNN` and `DSCNN`. 
 7. Information about model training is provided as in pickle files `DNN_models.pkl`, `CNN_models.pkl` and `DSCNN_models.pkl`. 
 8. Scripts to make the figures in the `FIGURES` directory are in `src/plot_*.py`. 
